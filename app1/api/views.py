@@ -2,8 +2,28 @@ from rest_framework.response import Response
 # from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework import status
-from app1.models import Watchlist , StreamPlatform
-from .serializers import WatchListSerializer , StreamPlatformSerializer
+from rest_framework import generics ,mixins
+from app1.models import Watchlist , StreamPlatform , Reviews
+from .serializers import WatchListSerializer , StreamPlatformSerializer , ReviewSerializer
+
+
+
+class ReviewList(mixins.ListModelMixin,
+                  mixins.CreateModelMixin,
+                  generics.GenericAPIView):
+    queryset = Reviews.objects.all()
+    serializer_class = ReviewSerializer
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+
+
+
+
 
 
 ########## class based views  ##############
