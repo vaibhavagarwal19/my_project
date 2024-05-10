@@ -6,15 +6,37 @@ from rest_framework import status
 from rest_framework import generics 
 from rest_framework import viewsets
 from django.shortcuts import get_object_or_404
-from .permissions import AdminOrReadOnly ,RviewUserOrReadOnly
+from .permissions import AdminOrReadOnly ,ReviewUserOrReadOnly
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle , ScopedRateThrottle
 
 from app1.models import Watchlist , StreamPlatform , Reviews
 from .serializers import WatchListSerializer , StreamPlatformSerializer , ReviewSerializer
 
+from .throttling import ReviewCreateThrottle, ReviewListThrottle
+from django_filters.rest_framework import DjangoFilterBackend
+
+from .pagination import WatchListPagination ,WatchListLOPagination , WatchListCPagination
+
+
+class UserReview(generics.ListAPIView):
+    serializer_class = ReviewSerializer
+    # throttle_classes = [ReviewCreateThrottle, AnonRateThrottle]
+
+    ############overview queryset
+    # def get_queryset(self):
+    #     username = self.kwargs['username']
+    #     return Reviews.objects.filter(review_user__username=username)
+    def get_queryset(self):
+        username = self.request.query_params.get('username',None)
+        return Reviews.objects.filter(review_user__username=username)
+
 
 class ReviewCreate(generics.CreateAPIView):
     serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ReviewCreateThrottle]
 
     def get_queryset(self):
         return Reviews.objects.all()
@@ -43,6 +65,9 @@ class ReviewCreate(generics.CreateAPIView):
 ####### concrete view classes - generic class based views
 class ReviewList(generics.ListAPIView):
     serializer_class = ReviewSerializer
+    throttle_classes = [ReviewCreateThrottle, AnonRateThrottle]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['review_user__username', 'active']
 
     ############overview queryset
     def get_queryset(self):
@@ -53,7 +78,9 @@ class ReviewList(generics.ListAPIView):
 class ReviewDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Reviews.objects.all()
     serializer_class = ReviewSerializer
-    permission_classes = [RviewUserOrReadOnly]
+    permission_classes = [ReviewUserOrReadOnly]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'review-detail'
 
 
 
@@ -78,15 +105,24 @@ class ReviewDetail(generics.RetrieveUpdateDestroyAPIView):
 #     def post(self, request, *args, **kwargs):
 #         return self.create(request, *args, **kwargs)
 
+class WatchList(generics.ListAPIView):
+    queryset =Watchlist.objects.all()
+    serializer_class = WatchListSerializer
+    pagination_class =  WatchListCPagination
+    # filter_backends = [DjangoFilterBackend]
+    # search_fields =['title','platform__name']
 
+    # filter_backends = [filters.SearchFilter]
+    # search_fields =['title','platform__name']
 
-
-
-
+    # filter_backends = [filters.OrderingFilter]
+    # search_fields =['title','platform__name']
 
 ########## class based views  ##############
 
 class WatchListAV(APIView):
+    permission_classes = [AdminOrReadOnly]
+
     def get(self,request):
         movies = Watchlist.objects.all()
         serializer = WatchListSerializer(movies,many=True)
@@ -102,6 +138,7 @@ class WatchListAV(APIView):
         
 
 class WatchDetailAV(APIView):
+    permission_classes = [AdminOrReadOnly]
     def get(self,request,pk):
         try:
             movie = Watchlist.objects.get(pk=pk)
@@ -163,6 +200,8 @@ class StreamPlatformVS(viewsets.ModelViewSet):
 
 
 class StreamPlatformAV(APIView):
+    permission_classes = [AdminOrReadOnly]
+
     def get(self,request):
         platform = StreamPlatform.objects.all()
         serializer = StreamPlatformSerializer(platform, many= True,context={'request': request})
@@ -177,6 +216,8 @@ class StreamPlatformAV(APIView):
             return Response(serializer.errors)
 
 class StreamPlatformDetailAV(APIView):
+    permission_classes = [AdminOrReadOnly]
+
     def get(self,request,pk):
         platform = StreamPlatform.objects.get(pk=pk)
         serializer = StreamPlatformSerializer(platform,context={'request': request})

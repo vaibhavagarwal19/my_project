@@ -5,13 +5,13 @@ class AdminOrReadOnly(permissions.IsAdminUser):
         if request.method in permissions.SAFE_METHODS:
             return True
         else:
-            bool(request.user and request.user.is_staff)
+            return bool(request.user and request.user.is_staff)
             
     
-class RviewUserOrReadOnly(permissions.BasePermission):
+class ReviewUserOrReadOnly(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
         else:
-            return obj.review_user == request.user    
+            return obj.review_user == request.user  or request.user.is_admin 
         
