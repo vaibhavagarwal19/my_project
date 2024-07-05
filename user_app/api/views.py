@@ -18,7 +18,7 @@ def registration_view(request):
         serializer = RegistrationSerializer(data=request.data)
 
         data = {}
-
+ 
         if serializer.is_valid():
             #store save method data in account
             account = serializer.save()
